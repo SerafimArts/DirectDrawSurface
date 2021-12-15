@@ -97,8 +97,7 @@ final class Reader implements ReaderInterface
 
         [$width, $height] = [$meta->header->width, $meta->header->height];
 
-        $format = $this->getDXGIFormat($meta);
-
+        $format = $meta->getDxdiFormat();
         $blockSize = $format->getBytesPerBlock();
         $isCompressed = $format->isCompressedBlock();
 
@@ -133,18 +132,5 @@ final class Reader implements ReaderInterface
         }
 
         return (int)($width * $height * $blockSize);
-    }
-
-    /**
-     * @param Metadata $meta
-     * @return DxgiFormat
-     */
-    private function getDXGIFormat(Metadata $meta): DxgiFormat
-    {
-        if ($meta->dxt10) {
-            return $meta->dxt10->dxgiFormat;
-        }
-
-        return DxgiFormat::fromPixelFormat($meta->header->format);
     }
 }

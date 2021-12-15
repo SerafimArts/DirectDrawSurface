@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Serafim\DDS;
 
+use Serafim\DDS\Metadata\DXT10\DxgiFormat;
 use Serafim\DDS\Metadata\Header;
 use Serafim\DDS\Metadata\DXT10;
 use Serafim\DDS\Metadata\Header\Capability;
@@ -27,6 +28,18 @@ final class Metadata
         public readonly ?DXT10 $dxt10 = null,
         public readonly int $offset = 0,
     ) {}
+
+    /**
+     * @return DxgiFormat
+     */
+    public function getDxdiFormat(): DxgiFormat
+    {
+        if ($this->dxt10 !== null) {
+            return $this->dxt10->dxgiFormat;
+        }
+
+        return DxgiFormat::fromPixelFormat($this->header->format);
+    }
 
     /**
      * @return bool
