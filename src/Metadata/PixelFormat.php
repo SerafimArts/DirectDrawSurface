@@ -51,4 +51,29 @@ final class PixelFormat
         public int $bBitMask = 0,
         public int $aBitMask = 0,
     ) {}
+
+    /**
+     * @param positive-int|0 $r
+     * @param positive-int|0 $g
+     * @param positive-int|0 $b
+     * @param positive-int|0 $a
+     * @return bool
+     */
+    public function isBitMask(int $r = 0, int $g = 0, int $b = 0, int $a = 0): bool
+    {
+        return $this->rBitMask === $r
+            && $this->gBitMask === $g
+            && $this->bBitMask === $b
+            && $this->aBitMask === $a
+        ;
+    }
+
+    /**
+     * @param Flag $flag
+     * @return bool
+     */
+    public function hasFlag(Flag $flag): bool
+    {
+        return \in_array($flag, $this->flags, true);
+    }
 }

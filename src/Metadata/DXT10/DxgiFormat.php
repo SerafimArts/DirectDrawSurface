@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Serafim\DDS\Metadata\DXT10;
 
+use Serafim\DDS\Metadata\FourCC;
+use Serafim\DDS\Metadata\PixelFormat;
+use Serafim\DDS\Metadata\PixelFormat\Flag as PixelFormatFlag;
+
 /**
  * Resource data formats, including fully-typed and typeless formats. A list of
  * modifiers at the bottom of the page more fully describes each format type.
@@ -1106,4 +1110,212 @@ enum DxgiFormat: int
      * size other than 32 bits. This value is not used.
      */
     case DXGI_FORMAT_FORCE_UINT = 122;
+
+    /**
+     * @return bool
+     */
+    public function isDepthStencil(): bool
+    {
+        return $this === self::DXGI_FORMAT_R32G8X24_TYPELESS
+            || $this === self::DXGI_FORMAT_D32_FLOAT_S8X24_UINT
+            || $this === self::DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS
+            || $this === self::DXGI_FORMAT_X32_TYPELESS_G8X24_UINT
+            || $this === self::DXGI_FORMAT_D32_FLOAT
+            || $this === self::DXGI_FORMAT_R24G8_TYPELESS
+            || $this === self::DXGI_FORMAT_D24_UNORM_S8_UINT
+            || $this === self::DXGI_FORMAT_R24_UNORM_X8_TYPELESS
+            || $this === self::DXGI_FORMAT_X24_TYPELESS_G8_UINT
+            || $this === self::DXGI_FORMAT_D16_UNORM
+        ;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isCompressedBlock(): bool
+    {
+        return $this === self::DXGI_FORMAT_BC1_TYPELESS
+            || $this === self::DXGI_FORMAT_BC1_UNORM
+            || $this === self::DXGI_FORMAT_BC1_UNORM_SRGB
+            || $this === self::DXGI_FORMAT_BC4_TYPELESS
+            || $this === self::DXGI_FORMAT_BC4_UNORM
+            || $this === self::DXGI_FORMAT_BC4_SNORM
+            || $this === self::DXGI_FORMAT_BC2_TYPELESS
+            || $this === self::DXGI_FORMAT_BC2_UNORM
+            || $this === self::DXGI_FORMAT_BC2_UNORM_SRGB
+            || $this === self::DXGI_FORMAT_BC3_TYPELESS
+            || $this === self::DXGI_FORMAT_BC3_UNORM
+            || $this === self::DXGI_FORMAT_BC3_UNORM_SRGB
+            || $this === self::DXGI_FORMAT_BC5_TYPELESS
+            || $this === self::DXGI_FORMAT_BC5_UNORM
+            || $this === self::DXGI_FORMAT_BC5_SNORM
+            || $this === self::DXGI_FORMAT_BC6H_TYPELESS
+            || $this === self::DXGI_FORMAT_BC6H_UF16
+            || $this === self::DXGI_FORMAT_BC6H_SF16
+            || $this === self::DXGI_FORMAT_BC7_TYPELESS
+            || $this === self::DXGI_FORMAT_BC7_UNORM
+            || $this === self::DXGI_FORMAT_BC7_UNORM_SRGB
+        ;
+    }
+
+    /**
+     * @return int
+     */
+    public function getBytesPerBlock(): int
+    {
+        return match ($this) {
+            self::DXGI_FORMAT_NV12,
+            self::DXGI_FORMAT_420_OPAQUE,
+            self::DXGI_FORMAT_P208 => 2,
+
+            self::DXGI_FORMAT_P010,
+            self::DXGI_FORMAT_P016,
+            self::DXGI_FORMAT_R8G8_B8G8_UNORM,
+            self::DXGI_FORMAT_G8R8_G8B8_UNORM,
+            self::DXGI_FORMAT_YUY2 => 4,
+
+            self::DXGI_FORMAT_Y210,
+            self::DXGI_FORMAT_Y216,
+            self::DXGI_FORMAT_BC1_TYPELESS,
+            self::DXGI_FORMAT_BC1_UNORM,
+            self::DXGI_FORMAT_BC1_UNORM_SRGB,
+            self::DXGI_FORMAT_BC4_TYPELESS,
+            self::DXGI_FORMAT_BC4_UNORM,
+            self::DXGI_FORMAT_BC4_SNORM => 8,
+
+            self::DXGI_FORMAT_BC2_TYPELESS,
+            self::DXGI_FORMAT_BC2_UNORM,
+            self::DXGI_FORMAT_BC2_UNORM_SRGB,
+            self::DXGI_FORMAT_BC3_TYPELESS,
+            self::DXGI_FORMAT_BC3_UNORM,
+            self::DXGI_FORMAT_BC3_UNORM_SRGB,
+            self::DXGI_FORMAT_BC5_TYPELESS,
+            self::DXGI_FORMAT_BC5_UNORM,
+            self::DXGI_FORMAT_BC5_SNORM,
+            self::DXGI_FORMAT_BC6H_TYPELESS,
+            self::DXGI_FORMAT_BC6H_UF16,
+            self::DXGI_FORMAT_BC6H_SF16,
+            self::DXGI_FORMAT_BC7_TYPELESS,
+            self::DXGI_FORMAT_BC7_UNORM,
+            self::DXGI_FORMAT_BC7_UNORM_SRGB => 16
+        };
+    }
+
+    /**
+     * @param PixelFormat $format
+     * @return static
+     */
+    public static function fromPixelFormat(PixelFormat $format): self
+    {
+        try {
+            return match (true) {
+                $format->hasFlag(PixelFormatFlag::RGB) => match ($format->rgbBitCount) {
+                    32 => match (true) {
+                        $format->isBitMask(0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000) =>
+                            DxgiFormat::DXGI_FORMAT_R8G8B8A8_UNORM,
+                        $format->isBitMask(0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000) =>
+                            DxgiFormat::DXGI_FORMAT_B8G8R8A8_UNORM,
+                        $format->isBitMask(0x00FF0000, 0x0000FF00, 0x000000FF) =>
+                            DxgiFormat::DXGI_FORMAT_B8G8R8X8_UNORM,
+                        // No DXGI format [0x000000ff, 0x0000ff00, 0x00ff0000, 0] aka D3DFMT_X8B8G8R8
+                        //
+                        // Note that many common DDS reader/writers (including D3DX) swap the
+                        // the RED/BLUE masks for 10:10:10:2 formats. We assume
+                        // below that the 'backwards' header mask is being used since it is most
+                        // likely written by D3DX. The more robust solution is to use the 'DX10'
+                        // header extension and specify the DXGI_FORMAT_R10G10B10A2_UNORM format directly.
+                        //
+                        // For 'correct' writers, this should be 0x000003FF, 0x000FFC00, 0x3FF00000 for RGB data
+                        $format->isBitMask(0x3FF0_0000, 0x000F_FC00, 0x0000_03FF, 0xC000_0000) =>
+                            DxgiFormat::DXGI_FORMAT_R10G10B10A2_UNORM,
+                        // No DXGI format [0x000003FF, 0x000FFC00, 0x3FF00000, 0xC0000000] aka D3DFMT_A2R10G10B10
+                        $format->isBitMask(0x0000_FFFF, 0xFFFF_0000) =>
+                            DxgiFormat::DXGI_FORMAT_R16G16_UNORM,
+                        $format->isBitMask(0xFFFF_FFFF) =>
+                            // Only 32-bit color channel format in D3D9 was R32F
+                            // D3DX writes this out as a FourCC of 114
+                            DxgiFormat::DXGI_FORMAT_R32_FLOAT,
+                    },
+                    // No 24bpp DXGI formats aka D3DFMT_R8G8B8
+                    16 => match (true) {
+                        $format->isBitMask(0x7C00, 0x03E0, 0x001F, 0x8000) =>
+                            DxgiFormat::DXGI_FORMAT_B5G5R5A1_UNORM,
+                        $format->isBitMask(0xF800, 0x07E0, 0x001F) =>
+                            DxgiFormat::DXGI_FORMAT_B5G6R5_UNORM,
+                        // No DXGI format [0x7c00, 0x03e0, 0x001f, 0] aka D3DFMT_X1R5G5B5
+                        $format->isBitMask(0x0F00, 0x00F0, 0x000F, 0xF000) =>
+                            DxgiFormat::DXGI_FORMAT_B4G4R4A4_UNORM,
+                        // NVTT versions 1.x wrote this as RGB instead of LUMINANCE
+                        $format->isBitMask(0x00FF, a: 0xFF00) =>
+                            DxgiFormat::DXGI_FORMAT_R8G8_UNORM,
+                        $format->isBitMask(0xFFFF) =>
+                            DxgiFormat::DXGI_FORMAT_R16_UNORM,
+                        // No DXGI format [0x0f00, 0x00f0, 0x000f, 0] aka D3DFMT_X4R4G4B4,
+                        // No 3:3:2:8 or paletted DXGI formats aka D3DFMT_A8R3G3B2, D3DFMT_A8P8, etc.
+                    },
+                    8 => match (true) {
+                        // NVTT versions 1.x wrote this as RGB instead of LUMINANCE
+                        $format->isBitMask(0xFF) =>
+                            DxgiFormat::DXGI_FORMAT_R8_UNORM,
+                        // No 3:3:2 or paletted DXGI formats aka D3DFMT_R3G3B2, D3DFMT_P8
+                    },
+                },
+                $format->hasFlag(PixelFormatFlag::LUMINANCE) => match ($format->rgbBitCount) {
+                    16 => match (true) {
+                        $format->isBitMask(0xFFFF) =>
+                            // D3DX10/11 writes this out as DX10 extension
+                            DxgiFormat::DXGI_FORMAT_R16_UNORM,
+                        $format->isBitMask(0x00FF, a: 0xFF00) =>
+                            // D3DX10/11 writes this out as DX10 extension
+                            DxgiFormat::DXGI_FORMAT_R8G8_UNORM,
+                    },
+                    8 => match (true) {
+                        $format->isBitMask(0xFF) =>
+                            // D3DX10/11 writes this out as DX10 extension
+                            DxgiFormat::DXGI_FORMAT_R8_UNORM,
+                        // No DXGI format [0x0F, 0, 0, 0xF0] aka D3DFMT_A4L4
+                        $format->isBitMask(0x00FF, a: 0xFF00) =>
+                            // Some DDS writers assume the bitcount should be
+                            // 8 instead of 16
+                            DxgiFormat::DXGI_FORMAT_R8G8_UNORM,
+                    },
+                },
+                $format->hasFlag(PixelFormatFlag::ALPHA) => match ($format->rgbBitCount) {
+                    8 => DxgiFormat::DXGI_FORMAT_A8_UNORM,
+                },
+                $format->hasFlag(PixelFormatFlag::BUMP_DU_DV) => match ($format->rgbBitCount) {
+                    32 => match (true) {
+                        $format->isBitMask(0x0000_00FF, 0x0000_FF00, 0x00FF_0000, 0xFF00_0000) =>
+                            // D3DX10/11 writes this out as DX10 extension
+                            DxgiFormat::DXGI_FORMAT_R8G8B8A8_SNORM,
+                        $format->isBitMask(0x0000_FFFF, 0xFFFF_0000) =>
+                            // D3DX10/11 writes this out as DX10 extension
+                            DxgiFormat::DXGI_FORMAT_R16G16_SNORM,
+                        // No DXGI format [0x3FF00000, 0x000FFC00, 0x000003FF, 0xc0000000] aka D3DFMT_A2W10V10U10
+                    },
+                    16 => match (true) {
+                        $format->isBitMask(0x00FF, 0xFF00) =>
+                            // D3DX10/11 writes this out as DX10 extension
+                            DxgiFormat::DXGI_FORMAT_R8G8_SNORM,
+                    },
+                    // No DXGI format maps to PixelFormatFlag::BUMP_LUMINANCE aka D3DFMT_L6V5U5, D3DFMT_X8L8V8U8
+                },
+                $format->hasFlag(PixelFormatFlag::FOURCC) => match ($format->fourCC) {
+                    FourCC::DXT1 => DxgiFormat::DXGI_FORMAT_BC1_UNORM,
+                    FourCC::DXT2, FourCC::DXT3 => DxgiFormat::DXGI_FORMAT_BC2_UNORM,
+                    FourCC::DXT4, FourCC::DXT5 => DxgiFormat::DXGI_FORMAT_BC3_UNORM,
+                    FourCC::ATI1, FourCC::BC4U => DxgiFormat::DXGI_FORMAT_BC4_UNORM,
+                    FourCC::BC4S => DxgiFormat::DXGI_FORMAT_BC4_SNORM,
+                    FourCC::ATI2, FourCC::BC5U => DxgiFormat::DXGI_FORMAT_BC5_UNORM,
+                    FourCC::BC5S => DxgiFormat::DXGI_FORMAT_BC5_SNORM,
+                    // BC6H and BC7 are written using the "DX10" extended header.
+                    FourCC::RGBG => DxgiFormat::DXGI_FORMAT_R8G8_B8G8_UNORM,
+                    FourCC::GRGB => DxgiFormat::DXGI_FORMAT_G8R8_G8B8_UNORM,
+                    FourCC::YUY2 => DxgiFormat::DXGI_FORMAT_YUY2,
+                },
+            };
+        } catch (\UnhandledMatchError) {
+            return DxgiFormat::DXGI_FORMAT_UNKNOWN;
+        }
+    }
 }

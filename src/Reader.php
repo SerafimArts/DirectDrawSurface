@@ -18,6 +18,8 @@ use Serafim\BinStream\Type\Repository;
 use Serafim\DDS\Metadata\DXT10\DxgiFormat;
 use Serafim\DDS\Metadata\FourCC;
 use Serafim\DDS\Metadata\Header;
+use Serafim\DDS\Metadata\PixelFormat;
+use Serafim\DDS\Metadata\PixelFormat\Flag as PixelFormatFlag;
 use Serafim\DDS\Metadata\Reader as MetadataReader;
 
 final class Reader implements ReaderInterface
@@ -95,10 +97,15 @@ final class Reader implements ReaderInterface
 
         [$width, $height] = [$meta->header->width, $meta->header->height];
 
+        $format = $this->getDXGIFormat($meta);
+
+        $blockSize = $format->getBytesPerBlock();
+        $isCompressed = $format->isCompressedBlock();
+
         for ($level = 0; $level < $meta->header->mipMapCount && ($width || $height); ++$level) {
             [$width, $height] = [\max($width, 1), \max($height, 1)];
 
-            $size = $this->getMipSize($meta, $width, $height);
+            $size = $this->getMipSize($isCompressed, $blockSize, $width, $height);
             $offset = $stream->offset();
 
             yield new Mip($level, $width, $height, static function () use ($stream, $size, $offset): string {
@@ -113,16 +120,15 @@ final class Reader implements ReaderInterface
     }
 
     /**
-     * @param Metadata $meta
+     * @param bool $compressedBlock
+     * @param int $blockSize
      * @param positive-int $width
      * @param positive-int $height
      * @return positive-int
      */
-    private function getMipSize(Metadata $meta, int $width, int $height): int
+    private function getMipSize(bool $compressedBlock, int $blockSize, int $width, int $height): int
     {
-        $blockSize = $this->getBlockSize($meta);
-
-        if ($meta->header->format->fourCC->isCompressed()) {
+        if ($compressedBlock) {
             return (int)((($width + 3) >> 2) * (($height + 3) >> 2) * $blockSize);
         }
 
@@ -131,47 +137,14 @@ final class Reader implements ReaderInterface
 
     /**
      * @param Metadata $meta
-     * @return positive-int
+     * @return DxgiFormat
      */
-    private function getBlockSize(Metadata $meta): int
+    private function getDXGIFormat(Metadata $meta): DxgiFormat
     {
-        if ($meta->header->format->fourCC === FourCC::DX10) {
-            return match ($meta->dxt10->dxgiFormat) {
-                DxgiFormat::DXGI_FORMAT_BC1_TYPELESS,
-                DxgiFormat::DXGI_FORMAT_BC1_UNORM,
-                DxgiFormat::DXGI_FORMAT_BC1_UNORM_SRGB,
-                DxgiFormat::DXGI_FORMAT_BC4_TYPELESS,
-                DxgiFormat::DXGI_FORMAT_BC4_UNORM,
-                DxgiFormat::DXGI_FORMAT_BC4_SNORM => 8,
-
-                DxgiFormat::DXGI_FORMAT_BC2_TYPELESS,
-                DxgiFormat::DXGI_FORMAT_BC2_UNORM,
-                DxgiFormat::DXGI_FORMAT_BC2_UNORM_SRGB,
-                DxgiFormat::DXGI_FORMAT_BC3_TYPELESS,
-                DxgiFormat::DXGI_FORMAT_BC3_UNORM,
-                DxgiFormat::DXGI_FORMAT_BC3_UNORM_SRGB,
-                DxgiFormat::DXGI_FORMAT_BC5_TYPELESS,
-                DxgiFormat::DXGI_FORMAT_BC5_UNORM,
-                DxgiFormat::DXGI_FORMAT_BC5_SNORM,
-                DxgiFormat::DXGI_FORMAT_BC6H_TYPELESS,
-                DxgiFormat::DXGI_FORMAT_BC6H_UF16,
-                DxgiFormat::DXGI_FORMAT_BC6H_SF16,
-                DxgiFormat::DXGI_FORMAT_BC7_TYPELESS,
-                DxgiFormat::DXGI_FORMAT_BC7_UNORM,
-                DxgiFormat::DXGI_FORMAT_BC7_UNORM_SRGB => 16,
-
-                default => throw new \InvalidArgumentException(
-                    'Unsupported DXGI format [' . $meta->dxt10->dxgiFormat->name . ']'
-                ),
-            };
+        if ($meta->dxt10) {
+            return $meta->dxt10->dxgiFormat;
         }
 
-        return match ($meta->header->format->fourCC) {
-            FourCC::DXT1 => 8,
-            FourCC::DXT3, FourCC::DXT5 => 16,
-            default => throw new \InvalidArgumentException(
-                'Unsupported DDS format [' . $meta->header->format->fourCC->name . ']'
-            ),
-        };
+        return DxgiFormat::fromPixelFormat($meta->header->format);
     }
 }
