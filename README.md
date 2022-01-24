@@ -1,3 +1,3 @@
 # DDS Image Parser
 
-See [examples](samples).
+See [examples](./examples) directory
